@@ -6,14 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "status")
+@Table(name="car_body")
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class Status {
+@AllArgsConstructor
+public class CarBody {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String statusName;
+    private String type;
 }

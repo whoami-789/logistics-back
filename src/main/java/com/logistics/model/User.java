@@ -8,7 +8,7 @@ import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
-@Table(name = "user")
+@Table(name = "users")
 @Data
 @DynamicUpdate
 @AllArgsConstructor
@@ -21,6 +21,8 @@ public class User {
     private String lastName;
     private String phoneNumber;
     private String telegram;
+    private String country;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private Role role;
