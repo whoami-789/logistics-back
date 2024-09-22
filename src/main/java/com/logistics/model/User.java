@@ -22,6 +22,9 @@ public class User {
     private String phoneNumber;
     private String telegram;
     private String country;
+    private String password;
+    private String registrationToken;
+    private Long chatId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
