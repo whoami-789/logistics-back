@@ -67,11 +67,6 @@ public class UserController {
         }
     }
 
-
-
-
-
-
     // Регистрация нового пользователя
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@RequestBody User user) {

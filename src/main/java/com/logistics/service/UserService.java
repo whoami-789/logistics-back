@@ -47,9 +47,15 @@ public class UserService implements UserDetailsService {
 
 
     public User getUserByPhoneNumber(String pnumber) {
-        return userRepository.findByPhoneNumber(pnumber).orElseThrow(() ->
-                new IllegalArgumentException("User with phone number " + pnumber + " not found.")
-        );
+        try {
+            return userRepository.findByPhoneNumber(pnumber).orElseThrow(() ->
+                    new IllegalArgumentException("User with phone number " + pnumber + " not found.")
+            );
+        } catch (IllegalArgumentException e){
+            return userRepository.findById(Long.valueOf(pnumber)).orElseThrow(() ->
+                    new IllegalArgumentException("User with phone number " + pnumber + " not found.")
+            );
+        }
     }
 
     public void deleteUser(Long id) {
@@ -83,4 +89,9 @@ public class UserService implements UserDetailsService {
     }
 
 
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElseThrow(() ->
+                new IllegalArgumentException("User with phone number " + id + " not found.")
+        );
+    }
 }

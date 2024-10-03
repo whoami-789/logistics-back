@@ -28,10 +28,12 @@ public class WebSecurityConfig {
 
     private final UserService userService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public WebSecurityConfig(UserService userService, JwtTokenProvider jwtTokenProvider) {
+    public WebSecurityConfig(UserService userService, JwtTokenProvider jwtTokenProvider, JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userService = userService;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -43,10 +45,12 @@ public class WebSecurityConfig {
                         authorizeRequests
                                 .requestMatchers("/api/users/register", "/api/users/login").permitAll()
                                 .anyRequest().authenticated()
-                );
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
