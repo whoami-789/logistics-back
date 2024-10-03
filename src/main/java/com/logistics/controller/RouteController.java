@@ -23,11 +23,11 @@ public class RouteController {
         return ResponseEntity.ok(createdRoute);
     }
 
-    @PutMapping(value = "/{id}", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Route> updateRoute(@PathVariable Long id, @RequestBody Route route) {
-        Route updatedRoute = routeService.updateRoute(id, route);
-        return ResponseEntity.ok(updatedRoute);
-    }
+//    @PutMapping(value = "/{id}", consumes = "application/json", produces = "application/json")
+//    public ResponseEntity<Route> updateRoute(@PathVariable Long id, @RequestBody Route route) {
+//        Route updatedRoute = routeService.updateRoute(id, route);
+//        return ResponseEntity.ok(updatedRoute);
+//    }
 
     @GetMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<Route> getRouteById(@PathVariable Long id) {

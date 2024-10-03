@@ -2,22 +2,26 @@ package com.logistics.service;
 
 import com.logistics.model.User;
 import com.logistics.repository.UserRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder; // Добавлено поле
 
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User createUser(User user) {
@@ -25,6 +29,10 @@ public class UserService implements UserDetailsService {
         if (userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
             throw new IllegalArgumentException("Пользователь с таким номером телефона уже существует.");
         }
+
+        // Шифруем пароль перед сохранением
+        String encodedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
 
         // Генерация уникального токена регистрации
         user.setRegistrationToken(UUID.randomUUID().toString());
@@ -38,22 +46,9 @@ public class UserService implements UserDetailsService {
     }
 
 
-//    public User updateUser(Long id, User updatedUser) {
-//        Optional<User> existingUser = userRepository.findById(id);
-//        if (existingUser.isPresent()) {
-//            User user = existingUser.get();
-//            user.setUsername(updatedUser.getUsername());
-//            user.setEmail(updatedUser.getEmail());
-//            // обновляем другие поля
-//            return userRepository.save(user);
-//        } else {
-//            throw new IllegalArgumentException("User with ID " + id + " not found.");
-//        }
-//    }
-
-    public User getUserById(Long id) {
-        return userRepository.findById(id).orElseThrow(() ->
-                new IllegalArgumentException("User with ID " + id + " not found.")
+    public User getUserByPhoneNumber(String pnumber) {
+        return userRepository.findByPhoneNumber(pnumber).orElseThrow(() ->
+                new IllegalArgumentException("User with phone number " + pnumber + " not found.")
         );
     }
 
@@ -65,26 +60,27 @@ public class UserService implements UserDetailsService {
         return userRepository.findAll();
     }
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByTelegram(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-
-        // Преобразуем пользователя в объект UserDetails для работы с Spring Security
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getTelegram())
-                .password(user.getPassword())
-                .authorities(user.getRole().getName()) // назначение ролей пользователю
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
-    }
-
     public User findByRegistrationToken(String token) {
         return userRepository.findByRegistrationToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь с таким токеном не найден."));
     }
+
+
+    @Override
+    public UserDetails loadUserByUsername(String phoneNumber) throws UsernameNotFoundException {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден с номером телефона: " + phoneNumber));
+        return new org.springframework.security.core.userdetails.User(user.getPhoneNumber(), user.getPassword(), new ArrayList<>());
+    }
+
+    public void encryptExistingPasswords() {
+        List<User> users = userRepository.findAll();
+        for (User user : users) {
+            String encodedPassword = passwordEncoder.encode(user.getPassword());
+            user.setPassword(encodedPassword);
+            userRepository.save(user);
+        }
+    }
+
 
 }

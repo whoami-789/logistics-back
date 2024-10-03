@@ -9,60 +9,62 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Entity
-@Table
+@Table(name = "orders")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Orders {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer weight;
-    private Integer price;
-    private Double distance;
+    private Integer weight; // Вес груза в тоннах
+    private Integer price; // Стоимость заказа
+    private Double distance; // Расстояние
 
-    // Флаг для определения типа заказа: односторонний или туда-обратно
-    private Boolean roundTrip; // Если true, заказ туда и обратно
+    private String cargoType; // Тип груза (габариты, коробки, навалом)
 
-    // Размеры груза (если выбраны габариты)
-    private Double length;  // Длина
-    private Double width;   // Ширина
-    private Double height;  // Высота
+    // Габариты груза (если выбраны габариты)
+    private Double length; // Длина
+    private Double width;  // Ширина
+    private Double height; // Высота
 
-    // Детали оплаты
-    private String paymentMethod; // 'наличные' или 'перечисление'
-    private Integer advancePaymentPercentage; // % аванса
-    private String currency; // Валюта, например 'USD'
+    private String paymentMethod; // Способ оплаты (наличные или перечисление)
+    private Integer advancePaymentPercentage; // Процент авансового платежа
+    private String advancePaymentMethod; // Метод аванса (наличные или перечисление)
+    private String currency; // Валюта (USD, RUB и т.д.)
+
+    private Boolean roundTrip; // Односторонний заказ или туда-обратно
+
+    // Список маршрутов для многостоповой поездки
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Route> routes;
 
     // Заказчик
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", referencedColumnName = "id")
+    @JoinColumn(name = "customer_id")
     private User customer;
 
     // Исполнитель
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "executor_id", referencedColumnName = "id")
+    @JoinColumn(name = "executor_id")
     private User executor;
-
-    // Статус заказа
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "status_id", referencedColumnName = "id")
-    private Status status;
 
     // Тип кузова
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "carBody_id", referencedColumnName = "id")
+    @JoinColumn(name = "carBody_id")
     private CarBody carBody;
 
-    // Тип работы (односторонняя поездка, многостоповая поездка)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workType_id", referencedColumnName = "id")
+    @JoinColumn(name = "workType_id")
     private WorkType workType;
 
-    // Список маршрутов для многоточечных заказов
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Route> routes;
+    // Добавляем связь с фильтрами водителя
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "driver_filters_id")
+    private DriverFilters driverFilters;
 }
+

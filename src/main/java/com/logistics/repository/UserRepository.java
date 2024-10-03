@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByTelegram(String username);
 
+    Optional<User> findByPhoneNumber(String pnumber);
+
     Optional<User> findByRegistrationToken(String token);
 
     boolean existsByPhoneNumber(String phoneNumber);  // Проверка уникальности номера телефона

@@ -19,17 +19,17 @@ public class RouteService {
         return routeRepository.save(route);
     }
 
-    public Route updateRoute(Long id, Route updatedRoute) {
-        Optional<Route> existingRoute = routeRepository.findById(id);
-        if (existingRoute.isPresent()) {
-            Route route = existingRoute.get();
-            route.setLocation(updatedRoute.getLocation());
-            route.setSequence(updatedRoute.getSequence());
-            return routeRepository.save(route);
-        } else {
-            throw new IllegalArgumentException("Route with ID " + id + " not found.");
-        }
-    }
+//    public Route updateRoute(Long id, Route updatedRoute) {
+//        Optional<Route> existingRoute = routeRepository.findById(id);
+//        if (existingRoute.isPresent()) {
+//            Route route = existingRoute.get();
+//            route.setLocation(updatedRoute.getLocation());
+//            route.setSequence(updatedRoute.getSequence());
+//            return routeRepository.save(route);
+//        } else {
+//            throw new IllegalArgumentException("Route with ID " + id + " not found.");
+//        }
+//    }
 
     public Route getRouteById(Long id) {
         return routeRepository.findById(id).orElseThrow(() ->
