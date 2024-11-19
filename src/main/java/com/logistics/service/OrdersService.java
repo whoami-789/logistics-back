@@ -49,8 +49,8 @@ public class OrdersService {
         order.setCarBody(orderDTO.getCarBody());
         order.setAdr(orderDTO.getAdr());
         order.setCarType(orderDTO.getCarType());
-        order.setMin(Integer.valueOf(orderDTO.getMin()));
-        order.setMax(Integer.valueOf(orderDTO.getMax()));
+        order.setMin(orderDTO.getMin() != null ? Integer.valueOf(orderDTO.getMin()) : null);
+        order.setMax(orderDTO.getMax() != null ? Integer.valueOf(orderDTO.getMax()) : null);
         order.setNds(orderDTO.getNds());
         order.setTelegram(orderDTO.getTelegram());
         order.setPnumber(orderDTO.getPnumber());
