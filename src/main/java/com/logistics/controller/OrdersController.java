@@ -1,7 +1,10 @@
 package com.logistics.controller;
 
-import com.logistics.model.Orders;
+import com.logistics.dto.OrdersDTO;
+import com.logistics.dto.UserStatisticsDTO;
 import com.logistics.service.OrdersService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,68 +15,117 @@ import java.util.List;
 @RequestMapping("/api/orders")
 public class OrdersController {
     private final OrdersService ordersService;
+    private final Logger logger = LoggerFactory.getLogger(OrdersController.class);
 
     public OrdersController(OrdersService ordersService) {
         this.ordersService = ordersService;
     }
 
+    // Получение всех ордеров
+    @GetMapping
+    public ResponseEntity<List<OrdersDTO>> getAllOrders() {
+        List<OrdersDTO> orders = ordersService.getAllOrders();
+        return ResponseEntity.ok(orders);
+    }
+
+    // Получение ордеров, где заказчик не совпадает с переданным userId
+    @GetMapping("/exclude-customer/{customerId}")
+    public ResponseEntity<List<OrdersDTO>> getOrdersExcludingCustomer(@PathVariable Long customerId) {
+        List<OrdersDTO> orders = ordersService.getAllOrdersExcludingCustomer(customerId);
+        return ResponseEntity.ok(orders);
+    }
+
     @PostMapping
-    public ResponseEntity<Orders> createOrder(@RequestBody Orders order) {
-        // Логика фильтрации для габаритов
-        if ("габариты".equals(order.getCargoType())) {
-            if (order.getLength() == null || order.getWidth() == null || order.getHeight() == null) {
+    public ResponseEntity<OrdersDTO> createOrder(@RequestBody OrdersDTO orderDTO) {
+        logger.info("Received order: {}", orderDTO);
+
+        // Проверка на валидность полей
+        validateOrder(orderDTO);
+
+        // Сохраняем заказ
+        OrdersDTO createdOrder = ordersService.createOrder(orderDTO);
+        return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
+    }
+
+    private void validateOrder(OrdersDTO orderDTO) {
+        if ("габариты".equals(orderDTO.getCargoType())) {
+            if (orderDTO.getLength() == null || orderDTO.getWidth() == null || orderDTO.getHeight() == null) {
                 throw new IllegalArgumentException("Для габаритного груза необходимо указать длину, ширину и высоту");
             }
         }
 
-        // Логика фильтрации для оплаты
-        if (order.getPaymentMethod() == null) {
+        if (orderDTO.getPaymentMethod() == null) {
             throw new IllegalArgumentException("Необходимо указать способ оплаты (наличные или перечисление)");
         }
 
-        if (order.getAdvancePaymentPercentage() != null && order.getAdvancePaymentMethod() == null) {
+        if (orderDTO.getAdvancePaymentPercentage() != null && orderDTO.getAdvancePaymentMethod() == null) {
             throw new IllegalArgumentException("Если указан аванс, необходимо указать способ его оплаты (наличные или перечисление)");
         }
-
-        // Если всё ок, сохраняем заказ
-        Orders createdOrder = ordersService.createOrder(order);
-        return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
-    }
-
-    // Обновление заказа по ID
-    @PutMapping(value = "/{id}", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Orders> updateOrder(@PathVariable Long id, @RequestBody Orders order) {
-        Orders updatedOrder = ordersService.updateOrder(id, order);
-        return ResponseEntity.ok(updatedOrder);
     }
 
     // Бронирование заказа водителем
     @PutMapping("/book/{orderId}")
-    public ResponseEntity<Orders> bookOrder(
+    public ResponseEntity<OrdersDTO> bookOrder(
             @PathVariable Long orderId,
             @RequestParam Long driverId) {
 
-        Orders bookedOrder = ordersService.bookOrder(orderId, driverId);
+        OrdersDTO bookedOrder = ordersService.bookOrder(orderId, driverId);
+        return ResponseEntity.ok(bookedOrder);
+    }
+
+    @PutMapping("/status/customer/{orderId}")
+    public ResponseEntity<OrdersDTO> changeCustomerStatus(
+            @PathVariable Long orderId,
+            @RequestParam String status) {
+
+        OrdersDTO bookedOrder = ordersService.customerStatus(orderId, status);
+        return ResponseEntity.ok(bookedOrder);
+    }
+
+    @PutMapping("/status/driver/{orderId}")
+    public ResponseEntity<OrdersDTO> changeDriverStatus(
+            @PathVariable Long orderId,
+            @RequestParam String status) {
+
+        OrdersDTO bookedOrder = ordersService.driverStatus(orderId, status);
         return ResponseEntity.ok(bookedOrder);
     }
 
     // Получение всех заказов для заказчика
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<Orders>> getCustomerOrders(@PathVariable Long customerId) {
-        List<Orders> orders = ordersService.getOrdersByCustomer(customerId);
+    public ResponseEntity<List<OrdersDTO>> getCustomerOrders(@PathVariable Long customerId) {
+        List<OrdersDTO> orders = ordersService.getOrdersByCustomer(customerId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/unbooked/{customerId}")
+    public ResponseEntity<List<OrdersDTO>> getCustomerUnbookedOrders(@PathVariable Long customerId) {
+        List<OrdersDTO> orders = ordersService.getUnbookedOrdersByCustomer(customerId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/customer/active/{customerId}")
+    public ResponseEntity<List<OrdersDTO>> getCustomerActiveOrders(@PathVariable Long customerId) {
+        List<OrdersDTO> orders = ordersService.getActiveOrdersByCustomer(customerId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<List<OrdersDTO>> getActiveOrders() {
+        List<OrdersDTO> orders = ordersService.getActiveOrders();
         return ResponseEntity.ok(orders);
     }
 
     // Получение всех заказов для исполнителя
     @GetMapping("/executor/{executorId}")
-    public ResponseEntity<List<Orders>> getExecutorOrders(@PathVariable Long executorId) {
-        List<Orders> orders = ordersService.getOrdersByExecutor(executorId);
+    public ResponseEntity<List<OrdersDTO>> getExecutorOrders(@PathVariable Long executorId) {
+        List<OrdersDTO> orders = ordersService.getOrdersByExecutor(executorId);
         return ResponseEntity.ok(orders);
     }
 
     // Получение детальной информации о заказе для заказчика
     @GetMapping("/{orderId}/customer/{customerId}")
-    public ResponseEntity<Orders> getOrderDetailsForCustomer(@PathVariable Long orderId, @PathVariable Long customerId) {
+    public ResponseEntity<OrdersDTO> getOrderDetailsForCustomer(@PathVariable Long orderId, @PathVariable Long customerId) {
         return ordersService.getOrderDetailsForCustomer(customerId, orderId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -81,17 +133,10 @@ public class OrdersController {
 
     // Получение детальной информации о заказе для исполнителя
     @GetMapping("/{orderId}/executor/{executorId}")
-    public ResponseEntity<Orders> getOrderDetailsForExecutor(@PathVariable Long orderId, @PathVariable Long executorId) {
+    public ResponseEntity<OrdersDTO> getOrderDetailsForExecutor(@PathVariable Long orderId, @PathVariable Long executorId) {
         return ordersService.getOrderDetailsForExecutor(executorId, orderId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    // Получение всех заказов для администратора
-    @GetMapping("/admin")
-    public ResponseEntity<List<Orders>> getAllOrders() {
-        List<Orders> orders = ordersService.getAllOrders();
-        return ResponseEntity.ok(orders);
     }
 
     // Удаление заказа
@@ -104,4 +149,12 @@ public class OrdersController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @GetMapping("/user/statistics/{userId}")
+    public ResponseEntity<UserStatisticsDTO> getUserStatistics(@PathVariable Long userId) {
+        UserStatisticsDTO statistics = ordersService.getUserStatistics(userId);
+        return ResponseEntity.ok(statistics);
+    }
+
+
 }

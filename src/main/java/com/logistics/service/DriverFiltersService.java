@@ -29,8 +29,29 @@ public class DriverFiltersService {
     }
 
     public DriverFilters saveDriverFilters(DriverFilters filters) {
-        return driverFiltersRepository.save(filters);
+        // Проверка, существует ли запись с таким driver_id
+        DriverFilters existingFilters = driverFiltersRepository.findByDriverId(filters.getDriver().getId());
+
+        if (existingFilters != null) {
+            // Обновляем существующие фильтры
+            existingFilters.setMinCargoWeight(filters.getMinCargoWeight());
+            existingFilters.setMaxCargoWeight(filters.getMaxCargoWeight());
+            existingFilters.setCargoType(filters.getCargoType());
+            existingFilters.setPrice(filters.getPrice());
+            existingFilters.setDistance(filters.getDistance());
+            existingFilters.setLength(filters.getLength());
+            existingFilters.setWidth(filters.getWidth());
+            existingFilters.setHeight(filters.getHeight());
+            existingFilters.setCurrency(filters.getCurrency());
+            existingFilters.setRoundTrip(filters.getRoundTrip());
+
+            return driverFiltersRepository.save(existingFilters);
+        } else {
+            // Если запись не найдена, сохраняем новые фильтры
+            return driverFiltersRepository.save(filters);
+        }
     }
+
 
     public DriverFilters getDriverFilters(Long driverId) {
         return driverFiltersRepository.findByDriverId(driverId);

@@ -50,6 +50,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             Long chatId = update.getMessage().getChatId();
+            String account = update.getMessage().getUserShared().getUsername();
 
             if (messageText.startsWith("/start ")) {
                 String token = messageText.substring("/start ".length());
@@ -59,6 +60,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                 if (user != null) {
                     // Сохранить chat_id в базе данных
                     user.setChatId(chatId);
+                    user.setTelegram(account);
                     userRepository.save(user);
 
                     // Отправить подтверждающее сообщение

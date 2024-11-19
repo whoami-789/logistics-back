@@ -1,14 +1,10 @@
 package com.logistics.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@Entity
 public class DriverFilters {
 
     @Id
@@ -28,4 +24,12 @@ public class DriverFilters {
     private Double height; // Высота
     private String currency; // Валюта
     private Boolean roundTrip; // Односторонний или туда-обратно
+
+    public DriverFilters() {
+    }
+
+    protected boolean canEqual(final Object other) {
+        return other instanceof DriverFilters;
+    }
+
 }

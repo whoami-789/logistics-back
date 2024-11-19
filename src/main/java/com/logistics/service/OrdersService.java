@@ -1,5 +1,6 @@
 package com.logistics.service;
 
+import com.logistics.dto.*;
 import com.logistics.model.Orders;
 import com.logistics.model.Route;
 import com.logistics.model.User;
@@ -7,8 +8,11 @@ import com.logistics.repository.OrdersRepository;
 import com.logistics.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class OrdersService {
@@ -21,54 +25,149 @@ public class OrdersService {
         this.userRepository = userRepository;
     }
 
-    public Orders createOrder(Orders order) {
-        // Обрабатываем многостоповую поездку
-        if (order.getWorkType().getType().equals("Многостоповая поездка")) {
-            List<Route> routes = order.getRoutes();
-            if (routes.size() > 3) {
-                throw new IllegalArgumentException("Максимум 3 маршрута для многостоповой поездки");
-            }
-            for (Route route : routes) {
-                route.setOrder(order); // Связываем маршрут с заказом
-            }
-        }
+    public OrdersDTO createOrder(OrdersDTO orderDTO) {
+        Orders order = new Orders();
 
-        // Обрабатываем габариты груза
-        if (order.getCargoType().equals("габариты")) {
-            if (order.getLength() == null || order.getWidth() == null || order.getHeight() == null) {
-                throw new IllegalArgumentException("Для габаритного груза необходимо указать длину, ширину и высоту");
-            }
-        }
+        // Присваиваем заказчика
+        User customer = userRepository.findById(orderDTO.getCustomerNum())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        order.setCustomer(customer);
 
-        return ordersRepository.save(order);
+        // Остальная логика сохранения заказа
+        order.setStartDate(orderDTO.getStartDate());
+        order.setWeight(orderDTO.getWeight());
+        order.setPrice(orderDTO.getPrice());
+        order.setDistance(orderDTO.getDistance());
+        order.setCargoType(orderDTO.getCargoType());
+        order.setLength(orderDTO.getLength());
+        order.setWidth(orderDTO.getWidth());
+        order.setHeight(orderDTO.getHeight());
+        order.setPaymentMethod(orderDTO.getPaymentMethod());
+        order.setAdvancePaymentPercentage(orderDTO.getAdvancePaymentPercentage());
+        order.setAdvancePaymentMethod(orderDTO.getAdvancePaymentMethod());
+        order.setCurrency(orderDTO.getCurrency());
+        order.setCarBody(orderDTO.getCarBody());
+        order.setAdr(orderDTO.getAdr());
+        order.setCarType(orderDTO.getCarType());
+        order.setMin(Integer.valueOf(orderDTO.getMin()));
+        order.setMax(Integer.valueOf(orderDTO.getMax()));
+        order.setNds(orderDTO.getNds());
+        order.setTelegram(orderDTO.getTelegram());
+        order.setPnumber(orderDTO.getPnumber());
+        order.setStatus("Создан"); // Устанавливаем статус "Новый"
+
+
+        // Присваиваем маршруты
+        List<Route> routes = orderDTO.getRoutes().stream()
+                .map(routeDTO -> {
+                    Route route = new Route();
+                    route.setCountryFrom(routeDTO.getCountryFrom());
+                    route.setCityFrom(routeDTO.getCityFrom());
+                    route.setAddressFrom(routeDTO.getAddressFrom());
+                    route.setCountryTo(routeDTO.getCountryTo());
+                    route.setCityTo(routeDTO.getCityTo());
+                    route.setAddressTo(routeDTO.getAddressTo());
+                    route.setOrder(order); // Связываем маршрут с заказом
+                    return route;
+                })
+                .collect(Collectors.toList());
+        order.setRoutes(routes);
+
+        // Сохраняем заказ
+        Orders savedOrder = ordersRepository.save(order);
+        return convertToDTO(savedOrder);
     }
 
-    public Orders updateOrder(Long id, Orders updatedOrder) {
-        Optional<Orders> existingOrder = ordersRepository.findById(id);
-        if (existingOrder.isPresent()) {
-            Orders order = existingOrder.get();
-            // Обновляем поля
-            order.setStartDate(updatedOrder.getStartDate());
-            order.setEndDate(updatedOrder.getEndDate());
-            order.setWeight(updatedOrder.getWeight());
-            order.setPrice(updatedOrder.getPrice());
-            order.setDistance(updatedOrder.getDistance());
-            // Обновляем маршруты, если многостоповая поездка
-            if (updatedOrder.getWorkType().getType().equals("Многостоповая поездка")) {
-                List<Route> routes = updatedOrder.getRoutes();
-                if (routes.size() > 3) {
-                    throw new IllegalArgumentException("Максимум 3 маршрута для многостоповой поездки");
-                }
-                order.setRoutes(routes);
-            }
-            return ordersRepository.save(order);
-        } else {
-            throw new IllegalArgumentException("Order with ID " + id + " not found.");
-        }
+
+    public List<OrdersDTO> getOrdersByCustomer(Long customerId) {
+        return ordersRepository.findAllByCustomerId(customerId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
+
+    public List<OrdersDTO> getUnbookedOrdersByCustomer(Long customerId) {
+        return ordersRepository.findAllByCustomerId(customerId).stream()
+                .map(this::convertToDTO)
+                .filter(orderDTO -> orderDTO.getStatus().equals("Создан"))
+                .collect(Collectors.toList());
+    }
+
+    public List<OrdersDTO> getActiveOrdersByCustomer(Long customerId) {
+        return ordersRepository.findAllByCustomerIdAndStatusIsNot(customerId, "Завершен").stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<OrdersDTO> getActiveOrders() {
+        return ordersRepository.findAllByStatusIsNot("Создан").stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<OrdersDTO> getOrdersByExecutor(Long executorId) {
+        return ordersRepository.findAllByExecutorId(executorId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public Optional<OrdersDTO> getOrderDetailsForCustomer(Long customerId, Long orderId) {
+        return ordersRepository.findByIdAndCustomerId(orderId, customerId)
+                .map(this::convertToDTO);
+    }
+
+    public Optional<OrdersDTO> getOrderDetailsForExecutor(Long executorId, Long orderId) {
+        return ordersRepository.findByIdAndExecutorId(orderId, executorId)
+                .map(this::convertToDTO);
+    }
+
+    public List<OrdersDTO> getAllOrders() {
+        return ordersRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private OrdersDTO convertToDTO(Orders order) {
+        OrdersDTO dto = new OrdersDTO();
+        dto.setId(order.getId());
+        dto.setStartDate(order.getStartDate());
+        dto.setEndDate(order.getEndDate());
+        dto.setWeight(order.getWeight());
+        dto.setPrice(order.getPrice());
+        dto.setDistance(order.getDistance());
+        dto.setCargoType(order.getCargoType());
+        dto.setLength(order.getLength());
+        dto.setWidth(order.getWidth());
+        dto.setHeight(order.getHeight());
+        dto.setPaymentMethod(order.getPaymentMethod());
+        dto.setAdvancePaymentPercentage(order.getAdvancePaymentPercentage());
+        dto.setAdvancePaymentMethod(order.getAdvancePaymentMethod());
+        dto.setCurrency(order.getCurrency());
+        dto.setStatus(order.getStatus());
+        dto.setDriverStatus(order.getDriverStatus());
+        dto.setCustomerStatus(order.getCustomerStatus());
+        dto.setCustomerNum(order.getCustomer().getId());
+        dto.setCarBody(order.getCarBody()); // Исправлено: у
+        dto.setAdr(order.getAdr()); // Исправлено: у
+        dto.setCarType(order.getCarType()); // Исправлено: у
+        dto.setTripType(order.getTripType()); // Исправлено: у
+        dto.setMin(String.valueOf(order.getMin())); // Исправлено: у
+        dto.setMax(String.valueOf(order.getMax())); // Исправлено: у
+        dto.setNds(order.getNds()); // Исправлено: у
+        dto.setTelegram(order.getTelegram()); // Исправлено: у
+        dto.setPnumber(order.getPnumber()); // Исправлено: у
+
+        // Конвертируем маршруты в RouteDTO
+        List<RouteDTO> routeDTOs = order.getRoutes().stream()
+                .map(route -> new RouteDTO(route.getCountryFrom(), route.getCityFrom(), route.getAddressFrom(), route.getCountryTo(), route.getCityTo(), route.getAddressTo()))
+                .collect(Collectors.toList());
+        dto.setRoutes(routeDTOs);
+
+        return dto;
+    }
+
 
     // Метод для бронирования заказа водителем (назначение executor)
-    public Orders bookOrder(Long orderId, Long driverId) {
+    public OrdersDTO bookOrder(Long orderId, Long driverId) {
         Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
         Optional<User> optionalDriver = userRepository.findById(driverId);
 
@@ -76,38 +175,41 @@ public class OrdersService {
             Orders order = optionalOrder.get();
             User driver = optionalDriver.get();
 
-            // Назначаем водителя на заказ
             order.setExecutor(driver);
-
-            return ordersRepository.save(order); // Сохраняем изменения
+            order.setDriverStatus("Забронирован");
+            Orders savedOrder = ordersRepository.save(order);
+            return convertToDTO(savedOrder);
         } else {
-            throw new IllegalArgumentException("Заказ или водитель с указанными ID не найдены");
+            throw new IllegalArgumentException("Заказ или водитель не найдены");
         }
     }
 
-    // Получение всех заказов, где пользователь — заказчик
-    public List<Orders> getOrdersByCustomer(Long customerId) {
-        return ordersRepository.findAllByCustomerId(customerId);
+    public OrdersDTO customerStatus(Long orderId, String status) {
+        Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
+
+        if (optionalOrder.isPresent()) {
+            Orders order = optionalOrder.get();
+
+            order.setCustomerStatus(status); // Устанавливаем исполнителя
+            Orders savedOrder = ordersRepository.save(order);
+            return convertToDTO(savedOrder);
+        } else {
+            throw new IllegalArgumentException("Заказ или водитель не найдены");
+        }
     }
 
-    // Получение всех заказов, где пользователь — исполнитель
-    public List<Orders> getOrdersByExecutor(Long executorId) {
-        return ordersRepository.findAllByExecutorId(executorId);
-    }
+    public OrdersDTO driverStatus(Long orderId, String status) {
+        Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
 
-    // Получение детальной информации о заказе для заказчика
-    public Optional<Orders> getOrderDetailsForCustomer(Long customerId, Long orderId) {
-        return ordersRepository.findByIdAndCustomerId(orderId, customerId);
-    }
+        if (optionalOrder.isPresent()) {
+            Orders order = optionalOrder.get();
 
-    // Получение детальной информации о заказе для исполнителя
-    public Optional<Orders> getOrderDetailsForExecutor(Long executorId, Long orderId) {
-        return ordersRepository.findByIdAndExecutorId(orderId, executorId);
-    }
-
-    // Получение всех заказов для администратора
-    public List<Orders> getAllOrders() {
-        return ordersRepository.findAll();
+            order.setDriverStatus(status); // Устанавливаем исполнителя
+            Orders savedOrder = ordersRepository.save(order);
+            return convertToDTO(savedOrder);
+        } else {
+            throw new IllegalArgumentException("Заказ или водитель не найдены");
+        }
     }
 
     // Удаление заказа
@@ -120,5 +222,44 @@ public class OrdersService {
         }
     }
 
-}
+    public List<OrdersDTO> getAllOrdersExcludingCustomer(Long customerId) {
+        return ordersRepository.findAll().stream()
+                .filter(order -> !order.getCustomer().getId().equals(customerId))
+                .filter(order -> order.getStatus().equals("Создан"))// Исключаем ордера с заданным customerId
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
 
+    public UserStatisticsDTO getUserStatistics(Long userId) {
+        Integer totalIncome = 0;
+        List<MonthlyIncomeDTO> monthlyIncome = new ArrayList<>();
+        int availableOrdersCount = ordersRepository.countAvailableOrdersForUser(); // Метод, который нужно будет создать
+
+        // Получите все заказы для пользователя и вычислите общий доход
+        List<Orders> orders = ordersRepository.findAllByExecutorId(userId);
+        for (Orders order : orders) {
+            totalIncome += order.getPrice(); // Предполагается, что price - это заработок за заказ
+        }
+
+        // Вычислите доход по месяцам
+        for (int month = 0; month < 12; month++) {
+            int finalMonth = month;
+            double monthlyTotal = orders.stream()
+                    .filter(order -> order.getStartDate().getMonthValue() == finalMonth + 1)
+                    .mapToDouble(Orders::getPrice)
+                    .sum();
+
+            String monthName = Month.of(month + 1).getDisplayName(TextStyle.FULL, Locale.forLanguageTag("ru"));
+            monthlyIncome.add(new MonthlyIncomeDTO(monthName, monthlyTotal));
+        }
+
+        // Получите доступные заказы по странам
+        List<AvailableOrderDTO> availableOrdersByCountry = ordersRepository.findAvailableOrdersByCountry(userId);
+
+        return new UserStatisticsDTO(totalIncome, availableOrdersCount, monthlyIncome, availableOrdersByCountry);
+    }
+
+
+
+
+}

@@ -51,12 +51,11 @@ public class UserController {
             // Генерируем JWT
             String token = jwtTokenProvider.generateToken(authentication.getName());
 
-            // Извлекаем роль пользователя
-            String role = user.getRole().getName(); // Получаем имя роли пользователя
             Long userId = user.getId(); // Получаем ID пользователя
+            System.out.println(userId);
 
             // Возвращаем ответ с токеном, ролью и ID пользователя
-            LoginResponse response = new LoginResponse(token, role, userId);
+            LoginResponse response = new LoginResponse(token, userId);
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
             System.out.println("Ошибка аутентификации: Неверные учетные данные");
@@ -70,12 +69,6 @@ public class UserController {
     // Регистрация нового пользователя
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@RequestBody User user) {
-        // Поиск роли по role_id
-        Role role = roleRepository.findById(user.getRole().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Роль с таким ID не найдена"));
-
-        // Устанавливаем роль для пользователя
-        user.setRole(role);
 
         // Проверка на уникальность номера телефона
         if (userService.existsByPhoneNumber(user.getPhoneNumber())) {
@@ -110,4 +103,33 @@ public class UserController {
         userService.encryptExistingPasswords();
         return ResponseEntity.ok("Пароли зашифрованы успешно.");
     }
+
+    // Добавление метода для обновления информации о пользователе по ID
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+        Optional<User> existingUser = userRepository.findById(id);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+
+            // Обновляем информацию пользователя
+            user.setFirstName(updatedUser.getFirstName());
+            user.setLastName(updatedUser.getLastName());
+            user.setPhoneNumber(updatedUser.getPhoneNumber());
+            user.setTelegram(updatedUser.getTelegram());
+            user.setWhatsappAccount(updatedUser.getWhatsappAccount());
+
+            // Если это юридическая компания, обновляем название компании
+            if (updatedUser.getCompanyName() != null) {
+                user.setCompanyName(updatedUser.getCompanyName());
+            }
+
+            // Сохраняем обновленного пользователя
+            userRepository.save(user);
+
+            return ResponseEntity.ok("Информация о пользователе успешно обновлена");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Пользователь не найден");
+        }
+    }
+
 }
