@@ -2,13 +2,16 @@ package com.logistics.controller;
 
 import com.logistics.dto.OrdersDTO;
 import com.logistics.dto.UserStatisticsDTO;
+import com.logistics.model.Orders;
 import com.logistics.service.OrdersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -27,6 +30,19 @@ public class OrdersController {
         List<OrdersDTO> orders = ordersService.getAllOrders();
         return ResponseEntity.ok(orders);
     }
+
+    @PutMapping("/{orderId}")
+    public ResponseEntity<OrdersDTO> updateOrder(
+            @PathVariable Long orderId,
+            @RequestBody OrdersDTO updatedOrderDTO) {
+        logger.info("Updating order with ID: {}", orderId);
+
+        // Вызов сервиса для обновления заказа
+        OrdersDTO updatedOrder = ordersService.updateOrder(orderId, updatedOrderDTO);
+
+        return ResponseEntity.ok(updatedOrder);
+    }
+
 
     // Получение ордеров, где заказчик не совпадает с переданным userId
     @GetMapping("/exclude-customer/{customerId}")
@@ -85,11 +101,13 @@ public class OrdersController {
     @PutMapping("/status/driver/{orderId}")
     public ResponseEntity<OrdersDTO> changeDriverStatus(
             @PathVariable Long orderId,
-            @RequestParam String status) {
+            @RequestParam String status,
+            @RequestParam Long driverId) {
 
-        OrdersDTO bookedOrder = ordersService.driverStatus(orderId, status);
+        OrdersDTO bookedOrder = ordersService.driverStatus(orderId, status, driverId);
         return ResponseEntity.ok(bookedOrder);
     }
+
 
     // Получение всех заказов для заказчика
     @GetMapping("/customer/{customerId}")
@@ -156,5 +174,26 @@ public class OrdersController {
         return ResponseEntity.ok(statistics);
     }
 
+    @GetMapping("/filter")
+    public ResponseEntity<List<OrdersDTO>> filterOrders(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) String carBody,
+            @RequestParam(required = false) Integer minWeight,
+            @RequestParam(required = false) Integer maxWeight,
+            @RequestParam(required = false) Integer priceFrom,
+            @RequestParam(required = false) Integer priceTo,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String countryFrom,
+            @RequestParam(required = false) String cityFrom,
+            @RequestParam(required = false) String countryTo,
+            @RequestParam(required = false) String cityTo,
+            @RequestParam(required = false) Long userId
+    ) {
+        // Вызываем сервис, чтобы получить список Orders (сущностей), который будет отфильтрован
+        List<OrdersDTO> filteredOrders = ordersService.filterOrders(
+                startDate, carBody, minWeight, maxWeight, priceFrom, priceTo, currency, countryFrom, cityFrom, countryTo, cityTo, userId
+        );
+        return ResponseEntity.ok(filteredOrders);
+    }
 
 }

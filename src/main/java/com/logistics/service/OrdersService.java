@@ -1,11 +1,18 @@
 package com.logistics.service;
 
+import com.logistics.config.OrdersSpecifications;
 import com.logistics.dto.*;
+import com.logistics.exception.ResourceNotFoundException;
 import com.logistics.model.Orders;
 import com.logistics.model.Route;
 import com.logistics.model.User;
 import com.logistics.repository.OrdersRepository;
 import com.logistics.repository.UserRepository;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -49,6 +56,7 @@ public class OrdersService {
         order.setCarBody(orderDTO.getCarBody());
         order.setAdr(orderDTO.getAdr());
         order.setCarType(orderDTO.getCarType());
+        order.setTripType(orderDTO.getTripType());
         order.setMin(orderDTO.getMin() != null ? Integer.valueOf(orderDTO.getMin()) : null);
         order.setMax(orderDTO.getMax() != null ? Integer.valueOf(orderDTO.getMax()) : null);
         order.setNds(orderDTO.getNds());
@@ -78,6 +86,33 @@ public class OrdersService {
         return convertToDTO(savedOrder);
     }
 
+    public OrdersDTO updateOrder(Long orderId, OrdersDTO updatedOrderDTO) {
+        // Логика обновления заказа
+        Orders existingOrder = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        // Обновление полей существующего заказа
+        existingOrder.setCargoType(updatedOrderDTO.getCargoType());
+        existingOrder.setStartDate(updatedOrderDTO.getStartDate());
+        existingOrder.setDistance(updatedOrderDTO.getDistance());
+        existingOrder.setWeight(updatedOrderDTO.getWeight());
+        existingOrder.setPrice(updatedOrderDTO.getPrice());
+        existingOrder.setCargoType(updatedOrderDTO.getCargoType());
+        existingOrder.setPaymentMethod(updatedOrderDTO.getPaymentMethod());
+        existingOrder.setCarType(updatedOrderDTO.getCarType());
+        existingOrder.setAdvancePaymentPercentage(updatedOrderDTO.getAdvancePaymentPercentage());
+        existingOrder.setWidth(updatedOrderDTO.getWidth());
+        existingOrder.setHeight(updatedOrderDTO.getHeight());
+        existingOrder.setLength(updatedOrderDTO.getLength());
+        // Добавьте остальные обновляемые поля...
+
+        // Сохранение обновленного заказа
+        ordersRepository.save(existingOrder);
+
+        // Преобразование в DTO для ответа
+        return convertToDTO(existingOrder);
+    }
+
 
     public List<OrdersDTO> getOrdersByCustomer(Long customerId) {
         return ordersRepository.findAllByCustomerId(customerId).stream()
@@ -88,7 +123,7 @@ public class OrdersService {
     public List<OrdersDTO> getUnbookedOrdersByCustomer(Long customerId) {
         return ordersRepository.findAllByCustomerId(customerId).stream()
                 .map(this::convertToDTO)
-                .filter(orderDTO -> orderDTO.getStatus().equals("Создан"))
+                .filter(orderDTO -> orderDTO.getStatus().equals("Создан") || orderDTO.getStatus().equals("Ожидает подтверждения"))
                 .collect(Collectors.toList());
     }
 
@@ -198,19 +233,19 @@ public class OrdersService {
         }
     }
 
-    public OrdersDTO driverStatus(Long orderId, String status) {
-        Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
+    public OrdersDTO driverStatus(Long orderId, String status, Long driverId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow();
 
-        if (optionalOrder.isPresent()) {
-            Orders order = optionalOrder.get();
+        // Обновляем статус и ID водителя
+        order.setDriverStatus(status);
+        order.setExecutor(userRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found")));
 
-            order.setDriverStatus(status); // Устанавливаем исполнителя
-            Orders savedOrder = ordersRepository.save(order);
-            return convertToDTO(savedOrder);
-        } else {
-            throw new IllegalArgumentException("Заказ или водитель не найдены");
-        }
+        ordersRepository.save(order);
+        return convertToDTO(order);
     }
+
 
     // Удаление заказа
     public void deleteOrder(Long orderId) {
@@ -241,17 +276,17 @@ public class OrdersService {
             totalIncome += order.getPrice(); // Предполагается, что price - это заработок за заказ
         }
 
-        // Вычислите доход по месяцам
-        for (int month = 0; month < 12; month++) {
-            int finalMonth = month;
-            double monthlyTotal = orders.stream()
-                    .filter(order -> order.getStartDate().getMonthValue() == finalMonth + 1)
-                    .mapToDouble(Orders::getPrice)
-                    .sum();
-
-            String monthName = Month.of(month + 1).getDisplayName(TextStyle.FULL, Locale.forLanguageTag("ru"));
-            monthlyIncome.add(new MonthlyIncomeDTO(monthName, monthlyTotal));
-        }
+//        // Вычислите доход по месяцам
+//        for (int month = 0; month < 12; month++) {
+//            int finalMonth = month;
+//            double monthlyTotal = orders.stream()
+//                    .filter(order -> order.getStartDate().getMonthValue() == finalMonth + 1)
+//                    .mapToDouble(Orders::getPrice)
+//                    .sum();
+//
+//            String monthName = Month.of(month + 1).getDisplayName(TextStyle.FULL, Locale.forLanguageTag("ru"));
+//            monthlyIncome.add(new MonthlyIncomeDTO(monthName, monthlyTotal));
+//        }
 
         // Получите доступные заказы по странам
         List<AvailableOrderDTO> availableOrdersByCountry = ordersRepository.findAvailableOrdersByCountry(userId);
@@ -259,7 +294,43 @@ public class OrdersService {
         return new UserStatisticsDTO(totalIncome, availableOrdersCount, monthlyIncome, availableOrdersByCountry);
     }
 
+    public List<OrdersDTO> filterOrders(
+            LocalDate startDate,
+            String carBody,
+            Integer minWeight,
+            Integer maxWeight,
+            Integer priceFrom,
+            Integer priceTo,
+            String currency,
+            String countryFrom,
+            String cityFrom,
+            String countryTo,
+            String cityTo,
+            Long userId
+    ) {
+        // Создаем спецификацию для поиска через JpaSpecificationExecutor
+        Specification<Orders> spec = Specification.where(OrdersSpecifications.hasStatus())
+                .and(OrdersSpecifications.isNotCustomer(userId));
 
+        // Добавляем фильтрацию по параметрам, если они присутствуют
+        if (startDate != null) spec = spec.and(OrdersSpecifications.hasStartDate(startDate));
+        if (carBody != null && !carBody.isEmpty()) spec = spec.and(OrdersSpecifications.hasCarBody(carBody));
+        if (minWeight != null) spec = spec.and(OrdersSpecifications.hasMinWeight(minWeight));
+        if (maxWeight != null) spec = spec.and(OrdersSpecifications.hasMaxWeight(maxWeight));
+        if (priceFrom != null || priceTo != null) spec = spec.and(OrdersSpecifications.hasPriceRange(priceFrom, priceTo));
+        if (currency != null && !currency.isEmpty()) spec = spec.and(OrdersSpecifications.hasCurrency(currency));
+        if (countryFrom != null || cityFrom != null || countryTo != null || cityTo != null) {
+            spec = spec.and(OrdersSpecifications.hasRoute(countryFrom, cityFrom, countryTo, cityTo));
+        }
+
+        // Получаем отфильтрованные заказы из репозитория
+        List<Orders> orders = ordersRepository.findAll(spec);
+
+        // Преобразуем сущности Orders в DTO и возвращаем
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
 
 
 }

@@ -100,13 +100,17 @@ public class Orders {
     }
 
     public void updateStatus() {
-        if (driverStatus != null && driverStatus.equals(customerStatus)) {
+        // Проверяем, если статус водителя или заказчика "Отменено"
+        if ("Отменено".equals(driverStatus) || "Отменено".equals(customerStatus)) {
+            this.status = "Создан";  // Если отменено, меняем статус на "Создан"
+        } else if (driverStatus != null && driverStatus.equals(customerStatus)) {
+            // Если статусы водителя и заказчика совпадают
             if (driverStatus.equals("Забронирован")) {
                 this.status = "В пути";  // Если оба статуса "Забронирован", основной статус "В пути"
             } else if (driverStatus.equals("Доставлен")) {
-                this.status = "Завершен";  // Если оба статуса "Доставлен", основной статус "Завершен"
+                this.status = "Завершено";  // Если оба статуса "Доставлен", основной статус "Завершен"
             } else {
-                this.status = driverStatus;  // В остальных случаях основной статус просто совпадает с обоими статусами
+                this.status = driverStatus;  // В остальных случаях основной статус совпадает с обоими статусами
             }
         } else {
             this.status = "Ожидает подтверждения";  // Или любое другое значение по умолчанию, если статусы разные

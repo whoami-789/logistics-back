@@ -1,5 +1,6 @@
 package com.logistics.controller;
 
+import com.logistics.dto.UpdateUserDTO;
 import com.logistics.model.Role;
 import com.logistics.model.User;
 import com.logistics.repository.RoleRepository;
@@ -104,9 +105,8 @@ public class UserController {
         return ResponseEntity.ok("Пароли зашифрованы успешно.");
     }
 
-    // Добавление метода для обновления информации о пользователе по ID
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UpdateUserDTO updatedUser) {
         Optional<User> existingUser = userRepository.findById(id);
         if (existingUser.isPresent()) {
             User user = existingUser.get();
@@ -131,5 +131,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Пользователь не найден");
         }
     }
+
 
 }

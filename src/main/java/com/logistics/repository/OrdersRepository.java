@@ -4,6 +4,7 @@ import com.logistics.dto.AvailableOrderDTO;
 import com.logistics.model.DriverFilters;
 import com.logistics.model.Orders;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Repository
-public interface OrdersRepository extends JpaRepository<Orders, Long> {
+public interface OrdersRepository extends JpaRepository<Orders, Long>, JpaSpecificationExecutor<Orders> {
     // Поиск всех заказов, где пользователь — заказчик
     List<Orders> findAllByCustomerId(Long customerId);
 
