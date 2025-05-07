@@ -57,27 +57,27 @@ public class DriverFiltersService {
         return driverFiltersRepository.findByDriverId(driverId);
     }
 
-    @Scheduled(fixedRate = 60000) // 60 секунд
-    public void autoBookOrders() {
-        List<DriverFilters> filtersList = driverFiltersRepository.findAll();
-        for (DriverFilters filters : filtersList) {
-            List<Orders> matchingOrders = ordersRepository.findOrdersByDriverFilters(filters);
-            if (matchingOrders.isEmpty()) {
-                logger.warn("No matching orders found for driver: {}", filters.getDriver().getId());
-                continue; // Переходим к следующему водителю
-            }
-            for (Orders order : matchingOrders) {
-                if (order.getExecutor() == null) { // Проверяем, что заказ не забронирован
-                    // Отправляем сообщение с инлайн-кнопками
-                    String messageText = "У вас новый заказ 🌏\n" +
-                            "ID заказа: " + order.getId() + "\n" +
-                            "Вес: " + order.getWeight() + " тонн\n" +
-                            "Цена: " + order.getPrice() + " " + order.getCurrency();
-
-                    telegramBot.sendMessageWithInlineButtons(filters.getDriver().getChatId(), messageText, order.getId());
-                }
-            }
-        }
-    }
+//    @Scheduled(fixedRate = 60000) // 60 секунд
+//    public void autoBookOrders() {
+//        List<DriverFilters> filtersList = driverFiltersRepository.findAll();
+//        for (DriverFilters filters : filtersList) {
+//            List<Orders> matchingOrders = ordersRepository.findOrdersByDriverFilters(filters);
+//            if (matchingOrders.isEmpty()) {
+//                logger.warn("No matching orders found for driver: {}", filters.getDriver().getId());
+//                continue; // Переходим к следующему водителю
+//            }
+//            for (Orders order : matchingOrders) {
+//                if (order.getExecutor() == null) { // Проверяем, что заказ не забронирован
+//                    // Отправляем сообщение с инлайн-кнопками
+//                    String messageText = "У вас новый заказ 🌏\n" +
+//                            "ID заказа: " + order.getId() + "\n" +
+//                            "Вес: " + order.getWeight() + " тонн\n" +
+//                            "Цена: " + order.getPrice() + " " + order.getCurrency();
+//
+//                    telegramBot.sendMessageWithInlineButtons(filters.getDriver().getChatId(), messageText, order.getId());
+//                }
+//            }
+//        }
+//    }
 
 }

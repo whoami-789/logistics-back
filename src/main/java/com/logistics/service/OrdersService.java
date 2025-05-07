@@ -6,6 +6,9 @@ import com.logistics.exception.ResourceNotFoundException;
 import com.logistics.model.Orders;
 import com.logistics.model.Route;
 import com.logistics.model.User;
+import com.logistics.model.enums.CustomerStatus;
+import com.logistics.model.enums.DriverStatus;
+import com.logistics.model.enums.OrderStatus;
 import com.logistics.repository.OrdersRepository;
 import com.logistics.repository.UserRepository;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -62,7 +65,7 @@ public class OrdersService {
         order.setNds(orderDTO.getNds());
         order.setTelegram(orderDTO.getTelegram());
         order.setPnumber(orderDTO.getPnumber());
-        order.setStatus("Создан"); // Устанавливаем статус "Новый"
+        order.setStatus(OrderStatus.CREATED); // Устанавливаем статус "Новый"
 
 
         // Присваиваем маршруты
@@ -177,9 +180,9 @@ public class OrdersService {
         dto.setAdvancePaymentPercentage(order.getAdvancePaymentPercentage());
         dto.setAdvancePaymentMethod(order.getAdvancePaymentMethod());
         dto.setCurrency(order.getCurrency());
-        dto.setStatus(order.getStatus());
-        dto.setDriverStatus(order.getDriverStatus());
-        dto.setCustomerStatus(order.getCustomerStatus());
+        dto.setStatus(String.valueOf(order.getStatus()));
+        dto.setDriverStatus(String.valueOf(order.getDriverStatus()));
+        dto.setCustomerStatus(String.valueOf(order.getCustomerStatus()));
         dto.setCustomerNum(order.getCustomer().getId());
         dto.setCarBody(order.getCarBody()); // Исправлено: у
         dto.setAdr(order.getAdr()); // Исправлено: у
@@ -203,48 +206,55 @@ public class OrdersService {
 
     // Метод для бронирования заказа водителем (назначение executor)
     public OrdersDTO bookOrder(Long orderId, Long driverId) {
-        Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
-        Optional<User> optionalDriver = userRepository.findById(driverId);
-
-        if (optionalOrder.isPresent() && optionalDriver.isPresent()) {
-            Orders order = optionalOrder.get();
-            User driver = optionalDriver.get();
-
-            order.setExecutor(driver);
-            order.setDriverStatus("Забронирован");
-            Orders savedOrder = ordersRepository.save(order);
-            return convertToDTO(savedOrder);
-        } else {
-            throw new IllegalArgumentException("Заказ или водитель не найдены");
-        }
+        return driverStatus(orderId, DriverStatus.BOOKED, driverId);
     }
 
-    public OrdersDTO customerStatus(Long orderId, String status) {
-        Optional<Orders> optionalOrder = ordersRepository.findById(orderId);
-
-        if (optionalOrder.isPresent()) {
-            Orders order = optionalOrder.get();
-
-            order.setCustomerStatus(status); // Устанавливаем исполнителя
-            Orders savedOrder = ordersRepository.save(order);
-            return convertToDTO(savedOrder);
-        } else {
-            throw new IllegalArgumentException("Заказ или водитель не найдены");
-        }
-    }
-
-    public OrdersDTO driverStatus(Long orderId, String status, Long driverId) {
+    // Сервисный метод для изменения статуса со стороны водителя
+    public OrdersDTO driverStatus(Long orderId, DriverStatus newDriverStatus, Long driverId) {
+        // Находим заказ
         Orders order = ordersRepository.findById(orderId)
-                .orElseThrow();
+                .orElseThrow(() -> new ResourceNotFoundException("Заказ не найден"));
 
-        // Обновляем статус и ID водителя
-        order.setDriverStatus(status);
-        order.setExecutor(userRepository.findById(driverId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver not found")));
+        // Если статус "BOOKED" (Забронирован) — назначаем водителя исполнителем
+        if (newDriverStatus == DriverStatus.BOOKED) {
+            User driver = userRepository.findById(driverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Водитель не найден"));
+            order.setExecutor(driver);
+        }
+        // Если статус "CANCELLED" (Водитель отменил) — освобождаем заказ
+        else if (newDriverStatus == DriverStatus.CANCELLED) {
+            order.setExecutor(null);
+        }
+        // Можно добавить логику для DELIVERED и т.д. по вашему бизнес-процессу
 
-        ordersRepository.save(order);
-        return convertToDTO(order);
+        // Устанавливаем статус водителя
+        order.setDriverStatus(newDriverStatus);
+
+        // setDriverStatus(...) автоматически вызывает order.updateStatus(),
+        // если вы реализовали это в сеттере, либо вы сами можете вызвать:
+        // order.updateStatus();
+
+        Orders saved = ordersRepository.save(order);
+        return convertToDTO(saved);
     }
+
+    // Сервисный метод для изменения статуса со стороны заказчика
+    public OrdersDTO customerStatus(Long orderId, CustomerStatus newCustomerStatus) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Заказ не найден"));
+
+        // Логика: если заказчик отменяет — "CANCELLED", можно проверить бизнес-условия...
+        // if (newCustomerStatus == CustomerStatus.CANCELLED && ... ) { ... }
+
+        order.setCustomerStatus(newCustomerStatus);
+        // Аналогично, setCustomerStatus(...) внутри может вызвать updateStatus()
+        // или вы сами вызовите:
+        // order.updateStatus();
+
+        Orders saved = ordersRepository.save(order);
+        return convertToDTO(saved);
+    }
+
 
 
     // Удаление заказа

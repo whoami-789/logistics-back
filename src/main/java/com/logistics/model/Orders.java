@@ -1,5 +1,8 @@
 package com.logistics.model;
 
+import com.logistics.model.enums.CustomerStatus;
+import com.logistics.model.enums.DriverStatus;
+import com.logistics.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,6 +12,7 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "orders")
+@AllArgsConstructor
 public class Orders {
 
     @Id
@@ -41,9 +45,14 @@ public class Orders {
     private String nds;
 
 
-    private String status;
-    private String driverStatus;
-    private String customerStatus;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private DriverStatus driverStatus;
+
+    @Enumerated(EnumType.STRING)
+    private CustomerStatus customerStatus;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Route> routes;
@@ -67,31 +76,6 @@ public class Orders {
     @JoinColumn(name = "driver_filters_id")
     private DriverFilters driverFilters;
 
-    public Orders(Long id, LocalDate startDate, LocalDate endDate, Integer weight, Integer price, Double distance, String cargoType, Double length, Double width, Double height, String paymentMethod, Integer advancePaymentPercentage, String advancePaymentMethod, String currency, String status, Boolean roundTrip, List<Route> routes, Long customerNum, User customer, User executor, String carBody, String workType, DriverFilters driverFilters) {
-        this.id = id;
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.weight = weight;
-        this.price = price;
-        this.distance = distance;
-        this.cargoType = cargoType;
-        this.length = length;
-        this.width = width;
-        this.height = height;
-        this.paymentMethod = paymentMethod;
-        this.advancePaymentPercentage = advancePaymentPercentage;
-        this.advancePaymentMethod = advancePaymentMethod;
-        this.currency = currency;
-        this.status = status;
-        this.routes = routes;
-        this.customerNum = customerNum;
-        this.customer = customer;
-        this.executor = executor;
-        this.carBody = carBody;
-        this.workType = workType;
-        this.driverFilters = driverFilters;
-    }
-
     public Orders() {
     }
 
@@ -100,32 +84,47 @@ public class Orders {
     }
 
     public void updateStatus() {
-        // Проверяем, если статус водителя или заказчика "Отменено"
-        if ("Отменено".equals(driverStatus) || "Отменено".equals(customerStatus)) {
-            this.status = "Создан";  // Если отменено, меняем статус на "Создан"
-        } else if (driverStatus != null && driverStatus.equals(customerStatus)) {
-            // Если статусы водителя и заказчика совпадают
-            if (driverStatus.equals("Забронирован")) {
-                this.status = "В пути";  // Если оба статуса "Забронирован", основной статус "В пути"
-            } else if (driverStatus.equals("Доставлен")) {
-                this.status = "Завершено";  // Если оба статуса "Доставлен", основной статус "Завершен"
-            } else {
-                this.status = driverStatus;  // В остальных случаях основной статус совпадает с обоими статусами
-            }
-        } else {
-            this.status = "Ожидает подтверждения";  // Или любое другое значение по умолчанию, если статусы разные
+        // Пример логики на enum (более чистый вариант)
+        if (driverStatus == DriverStatus.CANCELLED) {
+            // Водитель отменил -> освобождаем заказ
+            this.status = OrderStatus.CREATED;
+            this.executor = null;
+            return;
         }
+
+        if (customerStatus == CustomerStatus.CANCELLED) {
+            // Заказчик отменил -> заказ полностью отменён
+            this.status = OrderStatus.CANCELLED;
+            return;
+        }
+
+        if (driverStatus == DriverStatus.DELIVERED && customerStatus == CustomerStatus.DELIVERED) {
+            this.status = OrderStatus.COMPLETED;
+            return;
+        }
+
+        if (driverStatus == DriverStatus.BOOKED && customerStatus == CustomerStatus.BOOKED) {
+            this.status = OrderStatus.IN_PROGRESS;
+            return;
+        }
+
+        // Если хотя бы одна сторона BOOKED, но не обе:
+        if (driverStatus == DriverStatus.BOOKED || customerStatus == CustomerStatus.BOOKED) {
+            this.status = OrderStatus.WAITING_CONFIRMATION;
+            return;
+        }
+
+        // По умолчанию (если ничего не подошло)
+        this.status = OrderStatus.CREATED;
     }
 
-
-    // Сеттер для driverStatus с обновлением основного статуса
-    public void setDriverStatus(String driverStatus) {
+    // setDriverStatus и setCustomerStatus, вызывающие updateStatus()
+    public void setDriverStatus(DriverStatus driverStatus) {
         this.driverStatus = driverStatus;
         updateStatus();
     }
 
-    // Сеттер для customerStatus с обновлением основного статуса
-    public void setCustomerStatus(String customerStatus) {
+    public void setCustomerStatus(CustomerStatus customerStatus) {
         this.customerStatus = customerStatus;
         updateStatus();
     }

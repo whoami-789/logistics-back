@@ -4,24 +4,24 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "routes")
-public class Route {
+    @Table(name = "routes")
+    public class Route {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
 
-    private String countryFrom;
-    private String cityFrom;
-    private String addressFrom;
-    private String countryTo;
-    private String cityTo;
-    private String addressTo;
+        private String countryFrom;
+        private String cityFrom;
+        private String addressFrom;
+        private String countryTo;
+        private String cityTo;
+        private String addressTo;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    @JsonIgnore // Игнорируем это поле при сериализации
-    private Orders order; // Связь с заказом
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "order_id", nullable = false)
+        @JsonIgnore // Игнорируем это поле при сериализации
+        private Orders order; // Связь с заказом
 
     public Route(Long id, String countryFrom, String cityFrom, String addressFrom, String countryTo, String cityTo, String addressTo, Orders order) {
         this.id = id;

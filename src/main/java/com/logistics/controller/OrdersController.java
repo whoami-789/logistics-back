@@ -3,6 +3,8 @@ package com.logistics.controller;
 import com.logistics.dto.OrdersDTO;
 import com.logistics.dto.UserStatisticsDTO;
 import com.logistics.model.Orders;
+import com.logistics.model.enums.CustomerStatus;
+import com.logistics.model.enums.DriverStatus;
 import com.logistics.service.OrdersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,24 +91,37 @@ public class OrdersController {
         return ResponseEntity.ok(bookedOrder);
     }
 
+    /**
+     * Изменение статуса заказчика
+     * Принимает: /api/orders/status/customer/{orderId}?status=BOOKED
+     * где status может быть CREATED, BOOKED, DELIVERED, CANCELLED (CustomerStatus).
+     */
     @PutMapping("/status/customer/{orderId}")
     public ResponseEntity<OrdersDTO> changeCustomerStatus(
             @PathVariable Long orderId,
-            @RequestParam String status) {
-
-        OrdersDTO bookedOrder = ordersService.customerStatus(orderId, status);
-        return ResponseEntity.ok(bookedOrder);
+            // Обратите внимание на тип CustomerStatus вместо String
+            @RequestParam CustomerStatus status
+    ) {
+        OrdersDTO updatedOrder = ordersService.customerStatus(orderId, status);
+        return ResponseEntity.ok(updatedOrder);
     }
 
+    /**
+     * Изменение статуса водителя
+     * Принимает: /api/orders/status/driver/{orderId}?status=BOOKED&driverId=123
+     * где status может быть CREATED, BOOKED, DELIVERED, CANCELLED (DriverStatus).
+     */
     @PutMapping("/status/driver/{orderId}")
     public ResponseEntity<OrdersDTO> changeDriverStatus(
             @PathVariable Long orderId,
-            @RequestParam String status,
-            @RequestParam Long driverId) {
-
-        OrdersDTO bookedOrder = ordersService.driverStatus(orderId, status, driverId);
-        return ResponseEntity.ok(bookedOrder);
+            // Аналогично, используем enum DriverStatus
+            @RequestParam DriverStatus status,
+            @RequestParam Long driverId
+    ) {
+        OrdersDTO updatedOrder = ordersService.driverStatus(orderId, status, driverId);
+        return ResponseEntity.ok(updatedOrder);
     }
+
 
 
     // Получение всех заказов для заказчика
